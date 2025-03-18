@@ -24,13 +24,16 @@ const GEMINI_PRICING = {
 // selectedModelがGEMINI_PRICINGのキーとして有効であることを明示する型定義
 type GeminiModel = keyof typeof GEMINI_PRICING;
 
-// 入力パラメータのデフォルト値
+// 入力パラメータのデフォルト値（より現実的な設定）
 const DEFAULT_VALUES = {
-  promptTokens: 500,
-  outputTokens: 500,
+  promptTokens: 2000,
+  outputTokens: 2000,
   chatsPerUserPerDay: 10,
   numberOfUsers: 1000
 };
+
+// 日本語のトークン換算率（固定値）
+const JA_TOKEN_RATIO = 1.5; // 1トークン≒1.5文字
 
 export default function GeminiCostCalculator() {
   // 入力値は初期値をnullにして、プレースホルダーとして表示できるようにする
@@ -43,6 +46,7 @@ export default function GeminiCostCalculator() {
   const [monthlyInputTokens, setMonthlyInputTokens] = useState(0);
   const [monthlyOutputTokens, setMonthlyOutputTokens] = useState(0);
   const [monthlyCost, setMonthlyCost] = useState(0);
+  const [jpyMonthlyCost, setJpyMonthlyCost] = useState(0);
 
   useEffect(() => {
     const modelPricing = GEMINI_PRICING[selectedModel];
@@ -53,8 +57,9 @@ export default function GeminiCostCalculator() {
     const actualChatsPerUserPerDay = chatsPerUserPerDay ?? DEFAULT_VALUES.chatsPerUserPerDay;
     const actualNumberOfUsers = numberOfUsers ?? DEFAULT_VALUES.numberOfUsers;
 
-    const promptTokensPerChat = Math.round(actualPromptTokens / 4);
-    const outputTokensPerChat = Math.round(actualOutputTokens / 4);
+    // 文字数からトークン数への変換（日本語の場合、1トークン≒1.5文字）
+    const promptTokensPerChat = Math.round(actualPromptTokens / JA_TOKEN_RATIO);
+    const outputTokensPerChat = Math.round(actualOutputTokens / JA_TOKEN_RATIO);
 
     const monthlyInputTokensCalc = promptTokensPerChat * actualChatsPerUserPerDay * actualNumberOfUsers * 30;
     const monthlyOutputTokensCalc = outputTokensPerChat * actualChatsPerUserPerDay * actualNumberOfUsers * 30;
@@ -62,10 +67,14 @@ export default function GeminiCostCalculator() {
     const monthlyInputCost = monthlyInputTokensCalc / 1000 * modelPricing.inputTokenRate;
     const monthlyOutputCost = monthlyOutputTokensCalc / 1000 * modelPricing.outputTokenRate;
     const totalMonthlyCost = monthlyInputCost + monthlyOutputCost;
+    
+    // JPYに変換（概算レート: 1USD = 150JPY）
+    const jpyCost = totalMonthlyCost * 150;
 
     setMonthlyInputTokens(monthlyInputTokensCalc);
     setMonthlyOutputTokens(monthlyOutputTokensCalc);
     setMonthlyCost(totalMonthlyCost);
+    setJpyMonthlyCost(jpyCost);
   }, [promptTokens, outputTokens, chatsPerUserPerDay, numberOfUsers, selectedModel]);
 
   return (
@@ -152,7 +161,8 @@ export default function GeminiCostCalculator() {
             {[ 
               { label: "月間入力トークン数", value: monthlyInputTokens },
               { label: "月間出力トークン数", value: monthlyOutputTokens },
-              { label: "月間推定コスト ($)", value: `$${monthlyCost.toFixed(2)}` }
+              { label: "月間推定コスト ($)", value: `$${monthlyCost.toFixed(2)}` },
+              { label: "月間推定コスト (円)", value: `¥${Math.round(jpyMonthlyCost).toLocaleString()}` }
             ].map(({ label, value }, index) => (
               <div key={index} className="bg-gray-100 p-4 rounded-lg">
                 <p className="text-sm text-gray-600">{label}</p>
@@ -161,7 +171,9 @@ export default function GeminiCostCalculator() {
             ))}
 
             <div className="text-sm text-gray-600 mt-4">
-              <p>※1トークン≒4文字で換算</p>
+              <p>※日本語テキストは1トークン≒1.5文字で換算</p>
+              <p>※チャット履歴の蓄積による追加トークン消費は含まれていません</p>
+              <p>※米ドル→日本円は1ドル=150円で概算</p>
               <p>※最新のGemini料金に基づいて計算</p>
             </div>
           </CardContent>
