@@ -1,103 +1,127 @@
-import Image from "next/image";
+"use client";
+import React, { useState, useEffect } from "react";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 
-export default function Home() {
+// 最新のGemini料金設定（1000トークンあたり）
+const GEMINI_PRICING = {
+  "gemini-2.0-flash": {
+    inputTokenRate: 0.00010,   // $0.10 per 1M → $0.00010 per 1K
+    outputTokenRate: 0.00040,  // $0.40 per 1M → $0.00040 per 1K
+    name: "Gemini 2.0 Flash"
+  },
+  "gemini-2.0-flash-lite": {
+    inputTokenRate: 0.000075,  // $0.075 per 1M → $0.000075 per 1K
+    outputTokenRate: 0.00030,  // $0.30 per 1M → $0.00030 per 1K
+    name: "Gemini 2.0 Flash-Lite"
+  },
+  "gemini-1.5-flash": {
+    inputTokenRate: 0.000075,  // $0.075 per 1M → $0.000075 per 1K
+    outputTokenRate: 0.00030,  // $0.30 per 1M → $0.00030 per 1K
+    name: "Gemini 1.5 Flash"
+  }
+};
+
+// `selectedModel`がGEMINI_PRICINGのキーとして有効であることを明示する型定義
+type GeminiModel = keyof typeof GEMINI_PRICING;
+
+export default function GeminiCostCalculator() {
+  const [promptTokens, setPromptTokens] = useState(500);
+  const [outputTokens, setOutputTokens] = useState(500);
+  const [chatsPerUserPerDay, setChatsPerUserPerDay] = useState(10);
+  const [numberOfUsers, setNumberOfUsers] = useState(1000);
+  const [selectedModel, setSelectedModel] = useState<GeminiModel>("gemini-2.0-flash");
+
+  const [monthlyInputTokens, setMonthlyInputTokens] = useState(0);
+  const [monthlyOutputTokens, setMonthlyOutputTokens] = useState(0);
+  const [monthlyCost, setMonthlyCost] = useState(0);
+
+  useEffect(() => {
+    const modelPricing = GEMINI_PRICING[selectedModel];
+
+    const promptTokensPerChat = Math.round(promptTokens / 4);
+    const outputTokensPerChat = Math.round(outputTokens / 4);
+
+    const monthlyInputTokensCalc = promptTokensPerChat * chatsPerUserPerDay * numberOfUsers * 30;
+    const monthlyOutputTokensCalc = outputTokensPerChat * chatsPerUserPerDay * numberOfUsers * 30;
+
+    const monthlyInputCost = monthlyInputTokensCalc / 1000 * modelPricing.inputTokenRate;
+    const monthlyOutputCost = monthlyOutputTokensCalc / 1000 * modelPricing.outputTokenRate;
+    const totalMonthlyCost = monthlyInputCost + monthlyOutputCost;
+
+    setMonthlyInputTokens(monthlyInputTokensCalc);
+    setMonthlyOutputTokens(monthlyOutputTokensCalc);
+    setMonthlyCost(totalMonthlyCost);
+  }, [promptTokens, outputTokens, chatsPerUserPerDay, numberOfUsers, selectedModel]);
+
   return (
-    <div className="grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20 font-[family-name:var(--font-geist-sans)]">
-      <main className="flex flex-col gap-[32px] row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="list-inside list-decimal text-sm/6 text-center sm:text-left font-[family-name:var(--font-geist-mono)]">
-          <li className="mb-2 tracking-[-.01em]">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] px-1 py-0.5 rounded font-[family-name:var(--font-geist-mono)] font-semibold">
-              src/app/page.tsx
-            </code>
-            .
-          </li>
-          <li className="tracking-[-.01em]">
-            Save and see your changes instantly.
-          </li>
-        </ol>
+    <div className="p-4 space-y-6 max-w-4xl mx-auto">
+      <h1 className="text-2xl font-bold text-center">Geminiチャット利用コスト計算ツール</h1>
 
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:w-auto"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 w-full sm:w-auto md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
-        </div>
-      </main>
-      <footer className="row-start-3 flex gap-[24px] flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <Card>
+          <CardHeader>
+            <CardTitle>チャット利用パラメータ</CardTitle>
+            <CardDescription>チャットの利用想定を入力してください</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium mb-1">Geminiモデル選択</label>
+              <select 
+                value={selectedModel} 
+                onChange={(e) => setSelectedModel(e.target.value as GeminiModel)}
+                className="w-full p-2 border rounded"
+              >
+                {Object.entries(GEMINI_PRICING).map(([key, model]) => (
+                  <option key={key} value={key}>{model.name}</option>
+                ))}
+              </select>
+            </div>
+
+            {[ 
+              { label: "1回のプロンプト文字数", value: promptTokens, setter: setPromptTokens },
+              { label: "1回の出力文字数", value: outputTokens, setter: setOutputTokens },
+              { label: "1人1日あたりのチャット回数", value: chatsPerUserPerDay, setter: setChatsPerUserPerDay },
+              { label: "利用者数", value: numberOfUsers, setter: setNumberOfUsers }
+            ].map(({ label, value, setter }, index) => (
+              <div key={index}>
+                <label className="block text-sm font-medium mb-1">{label}</label>
+                <input 
+                  type="number" 
+                  min="1"
+                  step="1"
+                  value={value} 
+                  onChange={(e) => setter(Number(e.target.value))}
+                  className="w-full p-2 border rounded"
+                />
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>月間コスト分析結果</CardTitle>
+            <CardDescription>推定される月間利用コスト</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {[ 
+              { label: "月間入力トークン数", value: monthlyInputTokens },
+              { label: "月間出力トークン数", value: monthlyOutputTokens },
+              { label: "月間推定コスト ($)", value: `$${monthlyCost.toFixed(2)}` }
+            ].map(({ label, value }, index) => (
+              <div key={index} className="bg-gray-100 p-4 rounded-lg">
+                <p className="text-sm text-gray-600">{label}</p>
+                <p className="text-2xl font-bold">{value.toLocaleString()}</p>
+              </div>
+            ))}
+
+            <div className="text-sm text-gray-600 mt-4">
+              <p>※1トークン≒4文字で換算</p>
+              <p>※最新のGemini料金に基づいて計算</p>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
     </div>
   );
 }
