@@ -32,18 +32,14 @@ const DEFAULT_VALUES = {
     promptTokens: 2000,
     outputTokens: 2000,
     chatsPerUserPerDay: 10,
-    numberOfUsers: 1000,
-    knowledgeBaseTokens: 100000, // 社内ナレッジベース（100,000トークン）
-    useKnowledgeBase: true      // デフォルトでナレッジベース使用
+    numberOfUsers: 1000
   },
   // 顧客お問い合わせ対応のデフォルト
   customer: {
     promptTokens: 1500,
     outputTokens: 3000,
     inquiriesPerDay: 500,
-    responseRate: 0.8, // 応答率 80%
-    knowledgeBaseTokens: 100000, // 顧客向けナレッジベース（100,000トークン）
-    useKnowledgeBase: true      // デフォルトでナレッジベース使用
+    responseRate: 0.8 // 応答率 80%
   }
 };
 
@@ -59,16 +55,12 @@ export default function GeminiCostCalculator() {
   const [internalOutputTokens, setInternalOutputTokens] = useState<number | null>(null);
   const [chatsPerUserPerDay, setChatsPerUserPerDay] = useState<number | null>(null);
   const [numberOfUsers, setNumberOfUsers] = useState<number | null>(null);
-  const [internalKnowledgeBaseTokens, setInternalKnowledgeBaseTokens] = useState<number | null>(null);
-  const [useInternalKnowledgeBase, setUseInternalKnowledgeBase] = useState<boolean>(DEFAULT_VALUES.internal.useKnowledgeBase);
 
   // 顧客お問い合わせ対応のための状態
   const [customerPromptTokens, setCustomerPromptTokens] = useState<number | null>(null);
   const [customerOutputTokens, setCustomerOutputTokens] = useState<number | null>(null);
   const [inquiriesPerDay, setInquiriesPerDay] = useState<number | null>(null);
   const [responseRate, setResponseRate] = useState<number | null>(null);
-  const [customerKnowledgeBaseTokens, setCustomerKnowledgeBaseTokens] = useState<number | null>(null);
-  const [useCustomerKnowledgeBase, setUseCustomerKnowledgeBase] = useState<boolean>(DEFAULT_VALUES.customer.useKnowledgeBase);
   
   // 共通の状態
   const [selectedModel, setSelectedModel] = useState<GeminiModel>("gemini-2.0-flash");
@@ -77,7 +69,6 @@ export default function GeminiCostCalculator() {
   const [internalResults, setInternalResults] = useState({
     monthlyInputTokens: 0,
     monthlyOutputTokens: 0,
-    knowledgeBaseInputTokens: 0,
     monthlyCost: 0,
     jpyMonthlyCost: 0
   });
@@ -85,7 +76,6 @@ export default function GeminiCostCalculator() {
   const [customerResults, setCustomerResults] = useState({
     monthlyInputTokens: 0,
     monthlyOutputTokens: 0,
-    knowledgeBaseInputTokens: 0,
     monthlyCost: 0,
     jpyMonthlyCost: 0
   });
@@ -99,7 +89,6 @@ export default function GeminiCostCalculator() {
     const actualOutputTokens = internalOutputTokens ?? DEFAULT_VALUES.internal.outputTokens;
     const actualChatsPerUserPerDay = chatsPerUserPerDay ?? DEFAULT_VALUES.internal.chatsPerUserPerDay;
     const actualNumberOfUsers = numberOfUsers ?? DEFAULT_VALUES.internal.numberOfUsers;
-    const actualKnowledgeBaseTokens = internalKnowledgeBaseTokens ?? DEFAULT_VALUES.internal.knowledgeBaseTokens;
 
     // 文字数からトークン数への変換（日本語の場合、1トークン≒1.5文字）
     const promptTokensPerChat = Math.round(actualPromptTokens / JA_TOKEN_RATIO);
@@ -108,34 +97,24 @@ export default function GeminiCostCalculator() {
     // 1日あたりの総チャット数
     const totalChatsPerDay = actualChatsPerUserPerDay * actualNumberOfUsers;
     
-    // 月間プロンプトトークン
-    let monthlyPromptInputTokens = promptTokensPerChat * totalChatsPerDay * 30;
-    
-    // ナレッジベース参照がある場合は追加
-    let monthlyKnowledgeBaseInputTokens = 0;
-    if (useInternalKnowledgeBase) {
-      monthlyKnowledgeBaseInputTokens = actualKnowledgeBaseTokens * totalChatsPerDay * 30;
-      monthlyPromptInputTokens += monthlyKnowledgeBaseInputTokens;
-    }
-    
-    // 月間出力トークン
-    const monthlyOutputTokensCalc = outputTokensPerChat * totalChatsPerDay * 30;
+    // 月間トークン計算
+    const monthlyInputTokens = promptTokensPerChat * totalChatsPerDay * 30;
+    const monthlyOutputTokens = outputTokensPerChat * totalChatsPerDay * 30;
 
-    const monthlyInputCost = monthlyPromptInputTokens / 1000 * modelPricing.inputTokenRate;
-    const monthlyOutputCost = monthlyOutputTokensCalc / 1000 * modelPricing.outputTokenRate;
+    const monthlyInputCost = monthlyInputTokens / 1000 * modelPricing.inputTokenRate;
+    const monthlyOutputCost = monthlyOutputTokens / 1000 * modelPricing.outputTokenRate;
     const totalMonthlyCost = monthlyInputCost + monthlyOutputCost;
     
     // JPYに変換（概算レート: 1USD = 150JPY）
     const jpyCost = totalMonthlyCost * 150;
 
     setInternalResults({
-      monthlyInputTokens: monthlyPromptInputTokens,
-      monthlyOutputTokens: monthlyOutputTokensCalc,
-      knowledgeBaseInputTokens: monthlyKnowledgeBaseInputTokens,
+      monthlyInputTokens,
+      monthlyOutputTokens,
       monthlyCost: totalMonthlyCost,
       jpyMonthlyCost: jpyCost
     });
-  }, [internalPromptTokens, internalOutputTokens, chatsPerUserPerDay, numberOfUsers, internalKnowledgeBaseTokens, useInternalKnowledgeBase, selectedModel]);
+  }, [internalPromptTokens, internalOutputTokens, chatsPerUserPerDay, numberOfUsers, selectedModel]);
 
   // 顧客お問い合わせ対応コスト計算
   useEffect(() => {
@@ -146,7 +125,6 @@ export default function GeminiCostCalculator() {
     const actualOutputTokens = customerOutputTokens ?? DEFAULT_VALUES.customer.outputTokens;
     const actualInquiriesPerDay = inquiriesPerDay ?? DEFAULT_VALUES.customer.inquiriesPerDay;
     const actualResponseRate = responseRate ?? DEFAULT_VALUES.customer.responseRate;
-    const actualKnowledgeBaseTokens = customerKnowledgeBaseTokens ?? DEFAULT_VALUES.customer.knowledgeBaseTokens;
 
     // 文字数からトークン数への変換（日本語の場合、1トークン≒1.5文字）
     const promptTokensPerInquiry = Math.round(actualPromptTokens / JA_TOKEN_RATIO);
@@ -155,34 +133,24 @@ export default function GeminiCostCalculator() {
     // 問い合わせ処理数（日次の問い合わせ数 × 対応率）
     const dailyProcessedInquiries = actualInquiriesPerDay * actualResponseRate;
     
-    // 月間入力トークン
-    let monthlyPromptInputTokens = promptTokensPerInquiry * dailyProcessedInquiries * 30;
-    
-    // ナレッジベース参照がある場合は追加
-    let monthlyKnowledgeBaseInputTokens = 0;
-    if (useCustomerKnowledgeBase) {
-      monthlyKnowledgeBaseInputTokens = actualKnowledgeBaseTokens * dailyProcessedInquiries * 30;
-      monthlyPromptInputTokens += monthlyKnowledgeBaseInputTokens;
-    }
-    
-    // 月間出力トークン
-    const monthlyOutputTokensCalc = outputTokensPerInquiry * dailyProcessedInquiries * 30;
+    // 月間トークン計算
+    const monthlyInputTokens = promptTokensPerInquiry * dailyProcessedInquiries * 30;
+    const monthlyOutputTokens = outputTokensPerInquiry * dailyProcessedInquiries * 30;
 
-    const monthlyInputCost = monthlyPromptInputTokens / 1000 * modelPricing.inputTokenRate;
-    const monthlyOutputCost = monthlyOutputTokensCalc / 1000 * modelPricing.outputTokenRate;
+    const monthlyInputCost = monthlyInputTokens / 1000 * modelPricing.inputTokenRate;
+    const monthlyOutputCost = monthlyOutputTokens / 1000 * modelPricing.outputTokenRate;
     const totalMonthlyCost = monthlyInputCost + monthlyOutputCost;
     
     // JPYに変換（概算レート: 1USD = 150JPY）
     const jpyCost = totalMonthlyCost * 150;
 
     setCustomerResults({
-      monthlyInputTokens: monthlyPromptInputTokens,
-      monthlyOutputTokens: monthlyOutputTokensCalc,
-      knowledgeBaseInputTokens: monthlyKnowledgeBaseInputTokens,
+      monthlyInputTokens,
+      monthlyOutputTokens,
       monthlyCost: totalMonthlyCost,
       jpyMonthlyCost: jpyCost
     });
-  }, [customerPromptTokens, customerOutputTokens, inquiriesPerDay, responseRate, customerKnowledgeBaseTokens, useCustomerKnowledgeBase, selectedModel]);
+  }, [customerPromptTokens, customerOutputTokens, inquiriesPerDay, responseRate, selectedModel]);
 
   return (
     <div className="p-4 space-y-6 max-w-4xl mx-auto">
@@ -216,19 +184,6 @@ export default function GeminiCostCalculator() {
                 <CardDescription>社内での利用想定を入力してください</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
-                <div className="flex items-center gap-2 mb-2">
-                  <input
-                    type="checkbox"
-                    id="useInternalKnowledgeBase"
-                    checked={useInternalKnowledgeBase}
-                    onChange={(e) => setUseInternalKnowledgeBase(e.target.checked)}
-                    className="h-4 w-4"
-                  />
-                  <label htmlFor="useInternalKnowledgeBase" className="font-medium">
-                    ナレッジベースを使用する
-                  </label>
-                </div>
-
                 {[ 
                   { 
                     label: "1回のプロンプト文字数", 
@@ -253,13 +208,7 @@ export default function GeminiCostCalculator() {
                     value: numberOfUsers, 
                     setter: setNumberOfUsers, 
                     placeholder: DEFAULT_VALUES.internal.numberOfUsers 
-                  },
-                  ...(useInternalKnowledgeBase ? [{ 
-                    label: "ナレッジベーストークン数", 
-                    value: internalKnowledgeBaseTokens, 
-                    setter: setInternalKnowledgeBaseTokens, 
-                    placeholder: DEFAULT_VALUES.internal.knowledgeBaseTokens 
-                  }] : [])
+                  }
                 ].map(({ label, value, setter, placeholder }, index) => (
                   <div key={index}>
                     <label className="block text-sm font-medium mb-1">{label}</label>
@@ -293,26 +242,21 @@ export default function GeminiCostCalculator() {
               <CardContent className="space-y-4">
                 {[ 
                   { label: "月間入力トークン数", value: internalResults.monthlyInputTokens },
-                  ...(useInternalKnowledgeBase ? [{ 
-                    label: "（内ナレッジベース参照）", 
-                    value: internalResults.knowledgeBaseInputTokens 
-                  }] : []),
                   { label: "月間出力トークン数", value: internalResults.monthlyOutputTokens },
                   { label: "月間推定コスト ($)", value: `$${internalResults.monthlyCost.toFixed(2)}` },
                   { label: "月間推定コスト (円)", value: `¥${Math.round(internalResults.jpyMonthlyCost).toLocaleString()}` }
                 ].map(({ label, value }, index) => (
                   <div key={index} className="bg-gray-100 p-4 rounded-lg">
                     <p className="text-sm text-gray-600">{label}</p>
-                    <p className="text-2xl font-bold">{value.toLocaleString()}</p>
+                    <p className="text-2xl font-bold">
+                      {typeof value === 'string' ? value : value.toLocaleString()}
+                    </p>
                   </div>
                 ))}
 
                 <div className="text-sm text-gray-600 mt-4">
                   <p>※日本語テキストは1トークン≒1.5文字で換算</p>
                   <p>※チャット履歴の蓄積による追加トークン消費は含まれていません</p>
-                  {useInternalKnowledgeBase && (
-                    <p>※各チャットごとにナレッジベース全体を参照すると仮定</p>
-                  )}
                   <p>※米ドル→日本円は1ドル=150円で概算</p>
                 </div>
               </CardContent>
@@ -329,19 +273,6 @@ export default function GeminiCostCalculator() {
                 <CardDescription>顧客対応での利用想定を入力してください</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
-                <div className="flex items-center gap-2 mb-2">
-                  <input
-                    type="checkbox"
-                    id="useCustomerKnowledgeBase"
-                    checked={useCustomerKnowledgeBase}
-                    onChange={(e) => setUseCustomerKnowledgeBase(e.target.checked)}
-                    className="h-4 w-4"
-                  />
-                  <label htmlFor="useCustomerKnowledgeBase" className="font-medium">
-                    ナレッジベースを使用する
-                  </label>
-                </div>
-
                 {[ 
                   { 
                     label: "問い合わせ1件あたりのプロンプト文字数", 
@@ -366,13 +297,7 @@ export default function GeminiCostCalculator() {
                     value: responseRate, 
                     setter: setResponseRate, 
                     placeholder: DEFAULT_VALUES.customer.responseRate 
-                  },
-                  ...(useCustomerKnowledgeBase ? [{ 
-                    label: "ナレッジベーストークン数", 
-                    value: customerKnowledgeBaseTokens, 
-                    setter: setCustomerKnowledgeBaseTokens, 
-                    placeholder: DEFAULT_VALUES.customer.knowledgeBaseTokens 
-                  }] : [])
+                  }
                 ].map(({ label, value, setter, placeholder }, index) => (
                   <div key={index}>
                     <label className="block text-sm font-medium mb-1">{label}</label>
@@ -406,25 +331,20 @@ export default function GeminiCostCalculator() {
               <CardContent className="space-y-4">
                 {[ 
                   { label: "月間入力トークン数", value: customerResults.monthlyInputTokens },
-                  ...(useCustomerKnowledgeBase ? [{ 
-                    label: "（内ナレッジベース参照）", 
-                    value: customerResults.knowledgeBaseInputTokens 
-                  }] : []),
                   { label: "月間出力トークン数", value: customerResults.monthlyOutputTokens },
                   { label: "月間推定コスト ($)", value: `$${customerResults.monthlyCost.toFixed(2)}` },
                   { label: "月間推定コスト (円)", value: `¥${Math.round(customerResults.jpyMonthlyCost).toLocaleString()}` }
                 ].map(({ label, value }, index) => (
                   <div key={index} className="bg-gray-100 p-4 rounded-lg">
                     <p className="text-sm text-gray-600">{label}</p>
-                    <p className="text-2xl font-bold">{value.toLocaleString()}</p>
+                    <p className="text-2xl font-bold">
+                      {typeof value === 'string' ? value : value.toLocaleString()}
+                    </p>
                   </div>
                 ))}
 
                 <div className="text-sm text-gray-600 mt-4">
                   <p>※日本語テキストは1トークン≒1.5文字で換算</p>
-                  {useCustomerKnowledgeBase && (
-                    <p>※各問い合わせごとにナレッジベース全体を参照すると仮定</p>
-                  )}
                   <p>※米ドル→日本円は1ドル=150円で概算</p>
                 </div>
               </CardContent>
