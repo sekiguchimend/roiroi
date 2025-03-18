@@ -1,4 +1,4 @@
-"use client";
+"use client"; 
 import React, { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 
@@ -21,7 +21,7 @@ const GEMINI_PRICING = {
   }
 };
 
-// `selectedModel`がGEMINI_PRICINGのキーとして有効であることを明示する型定義
+// selectedModelがGEMINI_PRICINGのキーとして有効であることを明示する型定義
 type GeminiModel = keyof typeof GEMINI_PRICING;
 
 export default function GeminiCostCalculator() {
@@ -86,11 +86,16 @@ export default function GeminiCostCalculator() {
               <div key={index}>
                 <label className="block text-sm font-medium mb-1">{label}</label>
                 <input 
-                  type="number" 
-                  min="1"
-                  step="1"
+                  type="text" 
                   value={value} 
-                  onChange={(e) => setter(Number(e.target.value))}
+                  onChange={(e) => {
+                    // 空文字列の場合は0、それ以外は数値に変換
+                    const newValue = e.target.value === '' ? 0 : Number(e.target.value);
+                    // 数値として有効な場合のみ更新
+                    if (!isNaN(newValue)) {
+                      setter(newValue);
+                    }
+                  }}
                   className="w-full p-2 border rounded"
                 />
               </div>
