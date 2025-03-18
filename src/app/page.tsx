@@ -24,11 +24,20 @@ const GEMINI_PRICING = {
 // selectedModelがGEMINI_PRICINGのキーとして有効であることを明示する型定義
 type GeminiModel = keyof typeof GEMINI_PRICING;
 
+// 入力パラメータのデフォルト値
+const DEFAULT_VALUES = {
+  promptTokens: 500,
+  outputTokens: 500,
+  chatsPerUserPerDay: 10,
+  numberOfUsers: 1000
+};
+
 export default function GeminiCostCalculator() {
-  const [promptTokens, setPromptTokens] = useState(500);
-  const [outputTokens, setOutputTokens] = useState(500);
-  const [chatsPerUserPerDay, setChatsPerUserPerDay] = useState(10);
-  const [numberOfUsers, setNumberOfUsers] = useState(1000);
+  // 入力値は初期値をnullにして、プレースホルダーとして表示できるようにする
+  const [promptTokens, setPromptTokens] = useState<number | null>(null);
+  const [outputTokens, setOutputTokens] = useState<number | null>(null);
+  const [chatsPerUserPerDay, setChatsPerUserPerDay] = useState<number | null>(null);
+  const [numberOfUsers, setNumberOfUsers] = useState<number | null>(null);
   const [selectedModel, setSelectedModel] = useState<GeminiModel>("gemini-2.0-flash");
 
   const [monthlyInputTokens, setMonthlyInputTokens] = useState(0);
@@ -38,11 +47,17 @@ export default function GeminiCostCalculator() {
   useEffect(() => {
     const modelPricing = GEMINI_PRICING[selectedModel];
 
-    const promptTokensPerChat = Math.round(promptTokens / 4);
-    const outputTokensPerChat = Math.round(outputTokens / 4);
+    // 実際の値またはデフォルト値を使用
+    const actualPromptTokens = promptTokens ?? DEFAULT_VALUES.promptTokens;
+    const actualOutputTokens = outputTokens ?? DEFAULT_VALUES.outputTokens;
+    const actualChatsPerUserPerDay = chatsPerUserPerDay ?? DEFAULT_VALUES.chatsPerUserPerDay;
+    const actualNumberOfUsers = numberOfUsers ?? DEFAULT_VALUES.numberOfUsers;
 
-    const monthlyInputTokensCalc = promptTokensPerChat * chatsPerUserPerDay * numberOfUsers * 30;
-    const monthlyOutputTokensCalc = outputTokensPerChat * chatsPerUserPerDay * numberOfUsers * 30;
+    const promptTokensPerChat = Math.round(actualPromptTokens / 4);
+    const outputTokensPerChat = Math.round(actualOutputTokens / 4);
+
+    const monthlyInputTokensCalc = promptTokensPerChat * actualChatsPerUserPerDay * actualNumberOfUsers * 30;
+    const monthlyOutputTokensCalc = outputTokensPerChat * actualChatsPerUserPerDay * actualNumberOfUsers * 30;
 
     const monthlyInputCost = monthlyInputTokensCalc / 1000 * modelPricing.inputTokenRate;
     const monthlyOutputCost = monthlyOutputTokensCalc / 1000 * modelPricing.outputTokenRate;
@@ -78,24 +93,49 @@ export default function GeminiCostCalculator() {
             </div>
 
             {[ 
-              { label: "1回のプロンプト文字数", value: promptTokens, setter: setPromptTokens },
-              { label: "1回の出力文字数", value: outputTokens, setter: setOutputTokens },
-              { label: "1人1日あたりのチャット回数", value: chatsPerUserPerDay, setter: setChatsPerUserPerDay },
-              { label: "利用者数", value: numberOfUsers, setter: setNumberOfUsers }
-            ].map(({ label, value, setter }, index) => (
+              { 
+                label: "1回のプロンプト文字数", 
+                value: promptTokens, 
+                setter: setPromptTokens, 
+                placeholder: DEFAULT_VALUES.promptTokens 
+              },
+              { 
+                label: "1回の出力文字数", 
+                value: outputTokens, 
+                setter: setOutputTokens, 
+                placeholder: DEFAULT_VALUES.outputTokens 
+              },
+              { 
+                label: "1人1日あたりのチャット回数", 
+                value: chatsPerUserPerDay, 
+                setter: setChatsPerUserPerDay, 
+                placeholder: DEFAULT_VALUES.chatsPerUserPerDay 
+              },
+              { 
+                label: "利用者数", 
+                value: numberOfUsers, 
+                setter: setNumberOfUsers, 
+                placeholder: DEFAULT_VALUES.numberOfUsers 
+              }
+            ].map(({ label, value, setter, placeholder }, index) => (
               <div key={index}>
                 <label className="block text-sm font-medium mb-1">{label}</label>
                 <input 
                   type="text" 
-                  value={value} 
+                  value={value === null ? '' : value} 
                   onChange={(e) => {
-                    // 空文字列の場合は0、それ以外は数値に変換
-                    const newValue = e.target.value === '' ? 0 : Number(e.target.value);
-                    // 数値として有効な場合のみ更新
-                    if (!isNaN(newValue)) {
-                      setter(newValue);
+                    const inputValue = e.target.value;
+                    if (inputValue === '') {
+                      // 空の場合はnullにする（プレースホルダーを表示）
+                      setter(null);
+                    } else {
+                      const newValue = Number(inputValue);
+                      if (!isNaN(newValue)) {
+                        setter(newValue);
+                      }
                     }
                   }}
+                  placeholder={placeholder.toString()}
                   className="w-full p-2 border rounded"
                 />
               </div>
